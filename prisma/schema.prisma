@@ -1,0 +1,42 @@
+// GitHub Radar — optional PostgreSQL snapshot store.
+// Use RADAR_STORAGE=postgres and DATABASE_URL to enable it.
+// The default MVP storage is the local file store, see src/lib/radar/store.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TrackedRepository {
+  fullName    String               @id @map("full_name")
+  name        String
+  owner       String
+  description String?
+  language    String?
+  topics      String[]
+  htmlUrl     String               @map("html_url")
+  avatarUrl   String               @map("avatar_url")
+  createdAt   DateTime             @map("created_at")
+  updatedAt   DateTime             @map("updated_at")
+  lastSeenAt  DateTime             @default(now()) @map("last_seen_at")
+  snapshots   RepositorySnapshot[]
+
+  @@map("tracked_repositories")
+}
+
+model RepositorySnapshot {
+  id           Int                @id @default(autoincrement())
+  repoFullName String             @map("repo_full_name")
+  stars        Int
+  forks        Int
+  capturedAt   DateTime           @default(now()) @map("captured_at")
+  repository   TrackedRepository  @relation(fields: [repoFullName], references: [fullName], onDelete: Cascade)
+
+  @@unique([repoFullName, capturedAt])
+  @@index([repoFullName, capturedAt])
+  @@map("repository_snapshots")
+}

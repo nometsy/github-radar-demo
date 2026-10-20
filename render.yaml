@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: github-radar
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: RADAR_STORAGE
+        value: file
+      - key: RADAR_DATA_DIR
+        value: /var/data
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+    disk:
+      name: github-radar-data
+      mountPath: /var/data
+      sizeGB: 1
+
+  - type: cron
+    name: github-radar-collect
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    schedule: "*/45 * * * *"
+    buildCommand: "true"
+    startCommand: node scripts/collect.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: RADAR_BASE_URL
+        fromService:
+          name: github-radar
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: CRON_SECRET
+        fromService:
+          name: github-radar
+          type: web
+          envVarKey: CRON_SECRET

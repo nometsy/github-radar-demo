@@ -1,0 +1,34 @@
+name: Collect snapshots
+
+on:
+  schedule:
+    - cron: "*/45 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: radar-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger collection
+        env:
+          RADAR_BASE_URL: ${{ secrets.RADAR_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RADAR_BASE_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "Set RADAR_BASE_URL and CRON_SECRET in repository secrets." >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            --retry 2 --retry-delay 10 --max-time 120 \
+            -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${RADAR_BASE_URL%/}/api/radar/collect" \
+            | tee /tmp/radar-collect.json
