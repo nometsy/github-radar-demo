@@ -1,0 +1,29 @@
+name: Keep Render awake
+
+# Render's free web service sleeps after 15 minutes without a request.
+# A 10-minute ping keeps the instance (and its ephemeral .data directory)
+# alive between the 45-minute snapshot collections.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Wake the free Render service
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 1 --retry-delay 5 --max-time 120 \
+            "https://github-radar-pwif.onrender.com/" > /dev/null

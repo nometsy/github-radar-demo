@@ -31,21 +31,22 @@ import {
   getErrorMessage,
 } from "@/lib/utils";
 
+const AUTO_REFRESH_MS = 2 * 60_000;
+
 export default function DashboardPage() {
   const [lens, setLens] = React.useState<FeedLens>("rising");
-  const [refreshTick, setRefreshTick] = React.useState(0);
   const guardRefresh = useRefreshLock();
 
   const query = useQuery({
-    queryKey: ["dashboard", lens, refreshTick],
+    queryKey: ["dashboard", lens],
     queryFn: ({ signal }) =>
       apiFetch<DashboardResponse>(
-        `/api/github/dashboard${buildQuery({
-          lens,
-          refresh: refreshTick > 0 ? 1 : undefined,
-        })}`,
+        `/api/github/dashboard${buildQuery({ lens, refresh: 1 })}`,
         { signal },
       ),
+    // Keep the radar live without requiring a manual refresh. The refresh flag
+    // bypasses the server-side GitHub cache, so each tick is a real fetch.
+    refetchInterval: AUTO_REFRESH_MS,
   });
 
   const data = query.data;
@@ -60,14 +61,15 @@ export default function DashboardPage() {
           <>
             Live repository discovery from GitHub, filtered by how young and how
             active a project is. Growth percentages appear only where this radar
-            has collected its own snapshot history.
+            has collected its own snapshot history. The feed refreshes
+            automatically every two minutes.
           </>
         }
       >
         <Button
           variant="outline"
           size="sm"
-          onClick={() => guardRefresh(() => setRefreshTick((tick) => tick + 1))}
+          onClick={() => guardRefresh(() => void query.refetch())}
           disabled={query.isFetching}
         >
           <RefreshCw
